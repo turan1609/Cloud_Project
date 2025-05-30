@@ -82,7 +82,7 @@ The primary objective of this project is to perform a word count on a large text
 
 A simplified view of the architecture:
 
-```mermaid
+
 graph TD
     A[Local Machine] -- pscp / SSH --> B(EMR Master Node);
     B -- Generates 10GB file --> B;
@@ -98,8 +98,6 @@ graph TD
         subgraph EMR Cluster
             B
             D
-        end
-    end
 
 ---
 
