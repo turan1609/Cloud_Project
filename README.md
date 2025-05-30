@@ -98,8 +98,7 @@ graph TD
         subgraph EMR Cluster
             B
             D
-         end
-
+   end
 ---
 
 ## 📋 Prerequisites
