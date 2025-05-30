@@ -235,3 +235,166 @@ spark-submit \
 s3://your-unique-name-cse423-wordcount/scripts/word_count.py \
 s3://your-unique-name-cse423-wordcount/input/large_10gb_file.txt \
 s3://your-unique-name-cse423-wordcount/output/wordcount_results_10gb/
+
+  * The first argument to spark-submit is the S3 path to your PySpark script.
+  * The second argument is the S3 path to your 10GB input file (passed as sys.argv[1] to your script).
+  * The third argument is the S3 path where the output results will be stored (passed as sys.argv[2] to your script). This S3 path must not already exist, as Spark will create it.
+
+Monitor the job progress in the YARN ResourceManager UI (link available in EMR console) or through the command line output.
+The logs will also be available in the S3 log bucket you configured.
+
+🐍 The PySpark Script (word_count.py)
+
+```bash
+import sys
+from pyspark.sql import SparkSession # SparkSession, modern PySpark uygulamalarının giriş noktasıdır. DataFrame API'si ve SparkContext'i yönetir.
+import re   # re modülü, düzenli ifadeler (regular expressions) kullanarak metin içinde desen eşleştirme yapmak için kullanılır.
+import time # time modülü, kodun belirli bölümlerinin ne kadar sürede çalıştığını ölçmek gibi zamanla ilgili işlemler için kullanılır.
+import socket # socket modülü, ağ ile ilgili işlemler yapmak için kullanılır. Burada driver programının çalıştığı makinenin hostname ve IP adresini almak için kullanılıyor.
+
+# Bu blok, betik doğrudan çalıştırıldığında yürütülür (başka bir modül tarafından import edildiğinde değil).
+# PySpark uygulamalarının ana mantığı genellikle bu blok içinde yer alır.
+if __name__ == "__main__":
+    # Komut satırından verilen argümanların sayısını kontrol et.
+    # Betik adı dahil olmak üzere toplam 3 argüman bekleniyor:
+    # sys.argv[0]: betik_adı.py
+    # sys.argv[1]: giriş_dosyası_yolu
+    # sys.argv[2]: çıkış_dizini_yolu
+    if len(sys.argv) != 3:
+        # Corrected usage message for clarity if run with wrong args
+        print("Usage: spark-submit wordcount.py <s3_input_path> <s3_output_path>", file=sys.stderr)
+        sys.exit(-1)
+
+    # Komut satırından gelen birinci argümanı (indeks 1) giriş dosyasının S3 yolu olarak al.
+    input_path = sys.argv[1]
+    # Komut satırından gelen ikinci argümanı (indeks 2) çıktı sonuçlarının kaydedileceği S3 yolu olarak al.
+    output_path = sys.argv[2]
+
+    # İşlemin başlangıç zamanını kaydet. Bu, toplam çalışma süresini hesaplamak için kullanılacak.
+    start_time = time.time()
+
+    # SparkSession nesnesi oluştur. 
+    spark = SparkSession.builder.appName("CloudProjectWordCount").getOrCreate()
+
+    # SparkContext'i SparkSession üzerinden al.
+    sc = spark.sparkContext
+
+    # Driver programının (bu betiğin) çalıştığı makinenin hostname'ini (makine adı) al.
+    hostname = socket.gethostname()
+    # Alınan hostname'e karşılık gelen IP adresini çöz (bul).
+    ip_address = socket.gethostbyname(hostname)
+    # Driver'ın hostname ve IP adresini konsola yazdır.
+    print(f"Driver Hostname: {hostname}, IP Address: {ip_address}")
+    # Kullanılan giriş ve çıkış yollarını konsola yazdır.
+    print(f"Input Path: {input_path}")
+    print(f"Output Path: {output_path}")
+
+    # Belirtilen S3 yolundan (input_path) metin dosyasını oku ve bir RDD (Resilient Distributed Dataset) olarak yükle.
+    text_rdd = sc.textFile(input_path)
+
+    # Kelimelere ayırma, küçük harfe çevirme ve sayma işlemlerini içeren dönüşüm (transformation) zinciri:
+    word_counts = text_rdd.flatMap(lambda line: re.findall(r'\b[a-zA-Z]+\b', line.lower())) \
+                          .map(lambda word: (word, 1)) \
+                          .reduceByKey(lambda a, b: a + b)
+    
+    # Top 10 kelimeyi sadece bilgi amaçlı göstermek için.
+    try:
+        top_10_words = word_counts.takeOrdered(10, key=lambda x: -x[1])
+        print("-" * 30) 
+        print("Top 10 words (for informational purposes):") 
+        for word, count in top_10_words:
+            print(f"{word}: {count}")
+        print("-" * 30) 
+    except Exception as e:
+        print(f"Could not get top 10 words: {e}")
+
+    # Tüm kelime sayılarını S3'e kaydet.
+    print(f"Saving all word counts to: {output_path}") 
+    try:
+        word_counts.saveAsTextFile(output_path)
+        print("Successfully saved word counts.")
+    except Exception as e:
+        print(f"Error saving word counts: {e}")
+        spark.stop()
+        sys.exit(-1)
+
+    # İşlemin bitiş zamanını kaydet.
+    end_time = time.time()
+    # Toplam çalışma süresini hesapla.
+    total_time = end_time - start_time
+    # Toplam çalışma süresini saniye cinsinden yazdır.
+    print(f"Execution Time: {total_time:.2f} seconds")
+
+    # SparkSession'ı durdur.
+    spark.stop()
+```
+
+✅ Expected Output & Results
+
+Upon successful execution, the PySpark job will create a directory in your S3 output path (e.g., s3://your-unique-name-cse423-wordcount/output/wordcount_results_10gb/). This directory will contain:
+
+  * A _SUCCESS file (empty marker file indicating successful completion).
+  * Multiple part-xxxxx files, each containing a portion of the word counts. The number of part files depends on the number of reducers/partitions Spark used.
+
+Example content of a part-xxxxx file:
+
+```bash
+('the', 113891604)
+('of', 49558138)
+('to', 47168485)
+...
+('example', 303033)
+('cloud', 15023)
+...
+```
+
+The console output from spark-submit will show the "Top 10 words" and the "Execution Time".
+For instance (from project logs):
+
+```bash
+------------------------------
+Top 10 words (for informational purposes):
+the: 113891604
+of: 49558138
+to: 47168485
+a: 42553270
+in: 39452224
+and: 37340123
+s: 21201437
+said: 17921609
+for: 17864007
+that: 17118750
+------------------------------
+Saving all word counts to: s3://cloudodevi/cikti/proje_sonuclari/
+Successfully saved word counts.
+Execution Time: 604.67 seconds
+```
+
+(Refer to assets/s3_output_folders.png and assets/s3_output_example.png for example screenshots of the S3 output)
+(Refer to logs/spark_job_log_example.txt for a sample log output)
+
+🚧 Challenges Encountered
+
+  * AWS Learner Lab Limitations: Working within the AWS Learner Lab environment sometimes presents restrictions on available instance types, service quotas, or specific configurations. This required careful selection of EMR configurations and resource management.
+  * Data Transfer Times: Uploading the 10GB file to S3 from the EMR master node can be time-consuming depending on the network bandwidth of the EMR instance.
+  * Debugging on EMR: Identifying issues in Spark jobs running on EMR often requires inspecting YARN logs, Spark UI (if history server is configured), and S3 logs, which can be a learning curve.
+
+🧑‍🤝‍🧑 Team
+
+Yusuf TURAN
+Mustafa Cihan AYİNDİ
+Köksal Kerem TANIL
+Rıza KARAKAYA
+
+🙏 Acknowledgements
+
+ * Aydın Adnan Menderes University for providing the platform for this project.
+ * Asst. Prof. Dr. Hüseyin ABACI for guidance and support throughout the CSE423 Cloud Computing course.
+
+📚 References
+
+  * Amazon S3 Nedir ve Bucket Nasıl Oluşturulur?
+  * Getting Started with AWS EMR - Part I
+  * AWS Documentation
+  * Apache Hadoop Documentation
+  * Apache Spark Documentation (PySpark)
