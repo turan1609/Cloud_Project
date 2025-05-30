@@ -98,7 +98,8 @@ graph TD
             D
         end
     end
-            
+```
+
 ---
 
 ## 📋 Prerequisites
