@@ -101,12 +101,18 @@ graph TD
             D
         end
     end
+
+---
+
 ## 📋 Prerequisites
   * An AWS Account (preferably with Learner Lab access if applicable, or sufficient permissions).
   * AWS CLI configured locally (optional, but useful for S3 interactions).
   * PuTTY and pscp installed (or equivalent SSH and SCP clients for other OS).
   * The leipzig124MB.txt file (or any text file to be used as the base).
   * The word_count.py script.
+
+---
+
 ## 🚀 Setup and Execution Steps
 Step 1: Create S3 Bucket
   1. Navigate to the AWS S3 console.
@@ -119,3 +125,5 @@ Step 1: Create S3 Bucket
   8. Click "Create bucket".
   _Within your bucket, you might want to create folders like input/, scripts/, and output/ for better organization._
   _(Refer to assets/s3_bucket_config.png for an example screenshot)_
+
+---
