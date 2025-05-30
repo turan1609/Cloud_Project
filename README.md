@@ -84,13 +84,14 @@ A simplified view of the architecture:
 
 ```mermaid
 graph TD
-    A[Local Machine] -- pscp / SSH --> B(EMR Master Node);
-    B -- Generates 10GB file --> B;
-    B -- aws s3 cp --> C(S3 Bucket: Input Data / Scripts);
-    D(EMR Core/Task Nodes) -- Process Data --> D;
-    B -- spark-submit --> D;
-    C -- Spark Reads --> D;
-    D -- Spark Writes --> E(S3 Bucket: Output Results);
+    A[Local Machine] -- "1. Prepare code & initial data" --> A;
+    A -- "2. Transfer (pscp)" --> B(EMR Master Node);
+    B -- "3. Generate 10GB file" --> B;
+    B -- "4. Upload to S3 (script & 10GB data)" --> C(S3 Bucket: Input/Scripts);
+    B -- "5. spark-submit (references S3 script)" --> D(EMR Cluster: Spark Job);
+    C -- "6. Spark Reads Input (10GB data)" --> D;
+    D -- "7. PySpark Processes Data" --> D;
+    D -- "   Writes Word Counts" --> E(S3 Bucket: Output Results);
 
     subgraph AWS Cloud
         C
