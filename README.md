@@ -101,3 +101,21 @@ graph TD
             D
         end
     end
+## 📋 Prerequisites
+  * An AWS Account (preferably with Learner Lab access if applicable, or sufficient permissions).
+  * AWS CLI configured locally (optional, but useful for S3 interactions).
+  * PuTTY and pscp installed (or equivalent SSH and SCP clients for other OS).
+  * The leipzig124MB.txt file (or any text file to be used as the base).
+  * The word_count.py script.
+## 🚀 Setup and Execution Steps
+Step 1: Create S3 Bucket
+  1. Navigate to the AWS S3 console.
+  2. Click "Create bucket".
+  3. Bucket name: Choose a globally unique name (e.g., your-unique-name-cse423-wordcount).
+  4. AWS Region: Select US East (N. Virginia) us-east-1.
+  5. Bucket type: General purpose.
+  6. Block Public Access settings: Check "Block all public access" (Recommended for security).
+  7. Keep other settings as default (e.g., Bucket Versioning: Disable, Default encryption: SSE-S3).
+  8. Click "Create bucket".
+  _Within your bucket, you might want to create folders like input/, scripts/, and output/ for better organization._
+  _(Refer to assets/s3_bucket_config.png for an example screenshot)_
